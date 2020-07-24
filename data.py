@@ -72,10 +72,11 @@ class Data(torch.utils.data.Dataset):
         return d
 
     def get_mel(self, audio):
-        audio_norm = audio / self.max_wav_value
-        audio_norm = audio_norm.unsqueeze(0)
-        audio_norm = torch.autograd.Variable(audio_norm, requires_grad=False)
-        melspec = self.stft.mel_spectrogram(audio_norm)
+        # audio_norm = audio / self.max_wav_value
+        # audio_norm = audio_norm.unsqueeze(0)
+        # audio_norm = torch.autograd.Variable(audio_norm, requires_grad=False)
+        # melspec = self.stft.mel_spectrogram(audio_norm)
+        melspec = self.stft.mel_spectrogram(audio.unsqueeze(0))
         melspec = torch.squeeze(melspec, 0)
         return melspec
 
@@ -168,7 +169,13 @@ if __name__ == "__main__":
 
     with open(args.config) as f:
         data = f.read()
+ 
     data_config = json.loads(data)["data_config"]
+    print(data_config, type(data_config))
+    data_config.pop("training_files", None)
+    data_config.pop("validation_files", None)
+    data_config["filelist_path"] = args.filelist
+    
     mel2samp = Data(**data_config)
 
     # Make directory if it doesn't exist

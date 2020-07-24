@@ -288,6 +288,9 @@ if __name__ == "__main__":
     model_config = config["model_config"]
 
     # Make sure the launcher sets `RANK` and `WORLD_SIZE`.
+    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+    print(os.environ["CUDA_VISIBLE_DEVICES"])
+
     rank = int(os.getenv('RANK', '0'))
     n_gpus = int(os.getenv("WORLD_SIZE", '1'))
     print('> got rank {} and world size {} ...'.format(rank, n_gpus))

@@ -30,7 +30,7 @@ def get_mask_from_lengths(lengths):
     """
     max_len = torch.max(lengths).item()
     ids = torch.arange(0, max_len, out=torch.cuda.LongTensor(max_len))
-    mask = (ids < lengths.unsqueeze(1)).byte()
+    mask = (ids < lengths.unsqueeze(1)).bool()
     return mask
 
 
@@ -321,6 +321,7 @@ class Encoder(nn.Module):
             for conv in self.convolutions:
                 x = F.dropout(F.relu(conv(x)), 0.5, self.training)
             x = x.transpose(1, 2)
+
         x = nn.utils.rnn.pack_padded_sequence(x, in_lens, batch_first=True)
 
         self.lstm.flatten_parameters()
