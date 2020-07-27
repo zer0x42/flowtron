@@ -201,12 +201,12 @@ def train(n_gpus, rank, output_directory, epochs, learning_rate, weight_decay,
         data_config, n_gpus, batch_size)
 
     # Get shared output_directory ready
-    if rank == 0 and not os.path.isdir(output_directory):
+    if not os.path.isdir(output_directory):
         os.makedirs(output_directory)
         os.chmod(output_directory, 0o775)
     print("output directory", output_directory)
 
-    if with_tensorboard and rank == 0:
+    if with_tensorboard:
         logger = FlowtronLogger(os.path.join(output_directory, 'logs'))
 
     model.train()
@@ -237,22 +237,20 @@ def train(n_gpus, rank, output_directory, epochs, learning_rate, weight_decay,
             else:
                 loss.backward()
             optimizer.step()
+            
+            print("{}:\t{:.9f}".format(iteration, reduced_loss), flush=True)
 
-            if rank == 0:
-                print("{}:\t{:.9f}".format(iteration, reduced_loss), flush=True)
-
-            if with_tensorboard and rank == 0:
+            if with_tensorboard:
                 logger.add_scalar('training_loss', reduced_loss, iteration)
                 logger.add_scalar('learning_rate', learning_rate, iteration)
 
             if (iteration % iters_per_checkpoint == 0):
                 val_loss, attns, gate_pred, gate_target = compute_validation_loss(
                     model, criterion, valset, collate_fn, batch_size, n_gpus)
-                if rank == 0:
-                    print("Validation loss {}: {:9f}  ".format(iteration, val_loss))
-                    if with_tensorboard:
-                        logger.log_validation(
-                            val_loss, attns, gate_pred, gate_target, iteration)
+                print("Validation loss {}: {:9f}  ".format(iteration, val_loss))
+                if with_tensorboard:
+                    logger.log_validation(
+                        val_loss, attns, gate_pred, gate_target, iteration)
 
                     checkpoint_path = "{}/model_{}".format(
                         output_directory, iteration)
@@ -267,8 +265,8 @@ if __name__ == "__main__":
     parser.add_argument('-c', '--config', type=str,
                         help='JSON file for configuration')
     parser.add_argument('-p', '--params', nargs='+', default=[])
+    parser.add_argument('-r', '--rank', type=str, default='0')
     args = parser.parse_args()
-    args.rank = 0
 
     # Parse configs.  Globals nicer in this case
     with open(args.config) as f:
@@ -288,15 +286,12 @@ if __name__ == "__main__":
     model_config = config["model_config"]
 
     # Make sure the launcher sets `RANK` and `WORLD_SIZE`.
-    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+    os.environ["CUDA_VISIBLE_DEVICES"] = args.rank 
     print(os.environ["CUDA_VISIBLE_DEVICES"])
 
-    rank = int(os.getenv('RANK', '0'))
+    rank = int(os.getenv('RANK', args.rank))
     n_gpus = int(os.getenv("WORLD_SIZE", '1'))
     print('> got rank {} and world size {} ...'.format(rank, n_gpus))
-
-    if n_gpus == 1 and rank != 0:
-        raise Exception("Doing single GPU training on rank > 0")
 
     torch.backends.cudnn.enabled = True
     torch.backends.cudnn.benchmark = False
